@@ -1,5 +1,5 @@
 ## IOT CREDENTIAL & DATA DISPLAY SYSTEM WITH FIREBASE INTEGRATION
-![Image](https://github.com/user-attachments/assets/316cd67c-aa07-4138-b71e-b22334e97fb7)
+![Image](https://github.com/user-attachments/assets/7176467f-6162-40a0-8896-73c215555174)
 
 ### Objective:
 Design and implement an IoT system using ESP32 that:

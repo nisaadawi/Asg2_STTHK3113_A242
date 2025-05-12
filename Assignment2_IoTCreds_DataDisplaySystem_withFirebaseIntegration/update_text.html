@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Text Updater</title>
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #fff;
+            padding: 2.5rem 2rem 2rem 2rem;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            max-width: 400px;
+            width: 100%;
+            margin: 2rem;
+        }
+        h1 {
+            color: #3a3a5a;
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: 1px;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #5a5a89;
+            font-weight: 500;
+        }
+        textarea, input[type="email"], input[type="password"] {
+            width: 90%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #bdbdfc;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #f4f6ff;
+            margin-bottom: 0.5rem;
+            transition: border 0.2s;
+        }
+        textarea:focus, input[type="email"]:focus, input[type="password"]:focus {
+            border: 1.5px solid #6a11cb;
+            outline: none;
+        }
+        button {
+            background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+            color: #fff;
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0.5rem auto 0 auto;
+            display: block;
+            box-shadow: 0 2px 8px rgba(106, 17, 203, 0.08);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background: linear-gradient(90deg, #2575fc 0%, #6a11cb 100%);
+            box-shadow: 0 4px 16px rgba(37, 117, 252, 0.12);
+        }
+        button:disabled {
+            background: #bdbdfc;
+            cursor: not-allowed;
+        }
+        .logout-btn {
+            background: #fff;
+            color: #6a11cb;
+            border: 1.5px solid #6a11cb;
+            margin-top: 1rem;
+        }
+        .logout-btn:hover {
+            background: #6a11cb;
+            color: #fff;
+        }
+        .status {
+            margin-top: 1.2rem;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1rem;
+        }
+        .success {
+            background-color: #e0f7fa;
+            color: #00796b;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .info {
+            background-color: #e3e7fd;
+            color: #283593;
+        }
+        #loginForm {
+            display: none;
+        }
+        .login-input {
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+                max-width: 98vw;
+            }
+            h1 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Firebase Text Updater</h1>
+        <!-- Login Form -->
+        <div id="loginForm" class="form-group">
+            <h2 style="color:#283593; font-size:1.3rem; margin-bottom:1rem;">Login Required</h2>
+            <input type="email" id="email" class="login-input" placeholder="Email">
+            <input type="password" id="password" class="login-input" placeholder="Password">
+            <button onclick="login()">Login</button>
+        </div>
+        <!-- Main Content -->
+        <div id="mainContent" style="display: none;">
+            <div class="form-group">
+                <label for="message">Enter Message:</label>
+                <textarea id="message" placeholder="Type your message here..."></textarea>
+            </div>
+            <button onclick="updateText()">Update Text</button>
+            <button onclick="logout()" class="logout-btn">Logout</button>
+        </div>
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            databaseURL: "your_firebase_url",
+            apiKey: "your_api_key"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+        // Check authentication state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                loadCurrentText();
+                showStatus('Successfully logged in!', 'success');
+            } else {
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('mainContent').style.display = 'none';
+            }
+        });
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (!isValidEmail(email)) {
+                showStatus('Please enter a valid email address', 'error');
+                return;
+            }
+            if (password.length < 6) {
+                showStatus('Password must be at least 6 characters', 'error');
+                return;
+            }
+            const loginButton = document.querySelector('#loginForm button');
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+            showStatus('Attempting to login...', 'info');
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    showStatus('Login successful!', 'success');
+                })
+                .catch((error) => {
+                    let errorMessage = 'Login failed: ';
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                            errorMessage += 'No account found with this email';
+                            break;
+                        case 'auth/wrong-password':
+                            errorMessage += 'Incorrect password';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage += 'Invalid email format';
+                            break;
+                        case 'auth/user-disabled':
+                            errorMessage += 'This account has been disabled';
+                            break;
+                        default:
+                            errorMessage += error.message;
+                    }
+                    showStatus(errorMessage, 'error');
+                })
+                .finally(() => {
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Login';
+                });
+        }
+        function logout() {
+            auth.signOut()
+                .then(() => {
+                    showStatus('Logged out successfully', 'success');
+                })
+                .catch((error) => {
+                    showStatus('Error logging out: ' + error.message, 'error');
+                });
+        }
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+        function updateText() {
+            if (!auth.currentUser) {
+                showStatus('Please login first', 'error');
+                return;
+            }
+            const message = document.getElementById('message').value;
+            if (!message.trim()) {
+                showStatus('Please enter a message', 'error');
+                return;
+            }
+            const updateButton = document.querySelector('#mainContent button');
+            updateButton.disabled = true;
+            updateButton.textContent = 'Updating...';
+            showStatus('Updating text...', 'info');
+            database.ref('/display/text').set(message)
+                .then(() => {
+                    showStatus('Text updated successfully!', 'success');
+                })
+                .catch((error) => {
+                    showStatus('Error updating text: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    updateButton.disabled = false;
+                    updateButton.textContent = 'Update Text';
+                });
+        }
+        function loadCurrentText() {
+            database.ref('/display/text').once('value')
+                .then((snapshot) => {
+                    const currentText = snapshot.val();
+                    if (currentText) {
+                        document.getElementById('message').value = currentText;
+                    }
+                })
+                .catch((error) => {
+                    showStatus('Error loading current text: ' + error.message, 'error');
+                });
+        }
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
